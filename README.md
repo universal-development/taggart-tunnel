@@ -10,7 +10,6 @@ SSH jump hosts and securely access internal, non-public services (such as RDP, d
 - 🔐 **Secure multi-hop SSH tunneling**
 - 🔧 **Per-host configuration**: user, port, and identity file
 - 🧱 **Supports non-SSH services** (RDP, HTTP, DBs)
-- ❌ **Ignores SSH agent keys** using `IdentitiesOnly yes`
 - ⚡ **Fully self-contained Bash script** (no extra tools required)
 - 🪵 **Debug-friendly logging** to show tunnel structure and command
 
