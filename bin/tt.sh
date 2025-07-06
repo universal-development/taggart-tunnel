@@ -2,10 +2,7 @@
 set -euo pipefail
 
 CONFIG_FILE="${1:-./tt-chain.conf}"
-if [[ ! -f "$CONFIG_FILE" ]]; then
-  echo "❌ Config file not found: $CONFIG_FILE"
-  exit 1
-fi
+[[ -f "$CONFIG_FILE" ]] || { echo "❌ Config file not found: $CONFIG_FILE"; exit 1; }
 
 source "$CONFIG_FILE"
 
@@ -17,70 +14,47 @@ source "$CONFIG_FILE"
 TMP_SSH_CONFIG=$(mktemp)
 trap 'rm -f "$TMP_SSH_CONFIG"' EXIT
 
-JUMP_CHAIN=""
+ALIASES=()
+NUM_HOPS="${#HOST_CHAIN[@]}"
+
+# Build SSH config with ProxyJump logic inside config
 for i in "${!HOST_CHAIN[@]}"; do
-  raw_entry="${HOST_CHAIN[$i]}"
-  IFS='|' read -r connection key <<< "$raw_entry"
-
-  # Default values
-  user=""
-  host=""
-  port="22"
-
-  # Parse connection: user@host:port or host:port
-  if [[ "$connection" == *"@"* ]]; then
-    user_host="${connection%@*}"
-    host_port="${connection#*@}"
-  else
-    user_host=""
-    host_port="$connection"
-  fi
-
-  user="${user_host:-$USER}"
-
-  if [[ "$host_port" == *":"* ]]; then
-    host="${host_port%%:*}"
-    port="${host_port##*:}"
-  else
-    host="$host_port"
-  fi
-
-  alias_name="hop${i}_${host//[^a-zA-Z0-9]/_}_${port}"
+  entry="${HOST_CHAIN[$i]}"
+  IFS='|' read -r userhostport key <<< "$entry"
+  IFS='@' read -r user hostport <<< "$userhostport"
+  IFS=':' read -r host port <<< "$hostport"
+  port="${port:-22}"
+  alias="hop${i}"
+  ALIASES+=("$alias")
 
   {
-    echo "Host $alias_name"
+    echo "Host $alias"
     echo "  HostName $host"
-    echo "  Port $port"
     echo "  User $user"
+    echo "  Port $port"
     [[ -n "${key:-}" ]] && echo "  IdentityFile $key"
     echo "  IdentitiesOnly yes"
     echo "  StrictHostKeyChecking no"
+    # If not first, add ProxyJump to previous
+    if [[ "$i" -gt 0 ]]; then
+      prev_alias="hop$((i-1))"
+      echo "  ProxyJump $prev_alias"
+    fi
   } >> "$TMP_SSH_CONFIG"
-
-  if [[ $i -lt $((${#HOST_CHAIN[@]} - 1)) ]]; then
-    JUMP_CHAIN+="$alias_name,"
-  fi
 done
 
-JUMP_CHAIN="${JUMP_CHAIN%,}"
+FINAL="${ALIASES[-1]}"
 
-# Use last hop as SSH target for port forwarding
-last_index=$((${#HOST_CHAIN[@]} - 1))
-last_entry="${HOST_CHAIN[$last_index]}"
-IFS='|' read -r last_connection _ <<< "$last_entry"
-if [[ "$last_connection" == *":"* ]]; then
-  last_host="${last_connection%%:*}"
-  last_port="${last_connection##*:}"
-else
-  last_host="$last_connection"
-  last_port="22"
-fi
-last_alias="hop${last_index}_${last_host//[^a-zA-Z0-9]/_}_${last_port}"
-
-echo "➡ Forwarding localhost:${LOCAL_PORT} → ${REMOTE_HOST}:${REMOTE_PORT} via: $JUMP_CHAIN"
+echo "➡ Forwarding localhost:${LOCAL_PORT} → ${REMOTE_HOST}:${REMOTE_PORT} via:"
+for alias in "${ALIASES[@]}"; do
+  grep -A6 "Host $alias" "$TMP_SSH_CONFIG" | sed 's/^/    /'
+done
+echo
+echo "🚀 Executing SSH with:"
+echo "    ssh -F $TMP_SSH_CONFIG -N -L ${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT} $FINAL"
+echo
 
 ssh -F "$TMP_SSH_CONFIG" \
-    -N \
-    -L "${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT}" \
-    -J "$JUMP_CHAIN" \
-    "$last_alias"
+  -N \
+  -L "${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT}" \
+  "$FINAL"
