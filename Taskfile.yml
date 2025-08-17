@@ -1,0 +1,40 @@
+version: '3'
+
+vars:
+  SCRIPTS: bin/tt.sh
+  CONFIG: ./example-tt-chain.conf
+  SHELLCHECK: '{{.SHELLCHECK | default "shellcheck"}}'
+  SHFMT: '{{.SHFMT | default "shfmt"}}'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  run:
+    desc: Run tunnel (override with CONFIG=./your.conf)
+    cmds:
+      - bin/tt.sh {{.CONFIG}}
+
+  lint:
+    desc: Run shellcheck on Bash scripts
+    preconditions:
+      - sh: command -v {{.SHELLCHECK}}
+        msg: shellcheck not found. Install from https://www.shellcheck.net/ or your package manager.
+    cmds:
+      - '{{.SHELLCHECK}} {{.SCRIPTS}}'
+
+  format:
+    desc: Format Bash scripts with shfmt
+    preconditions:
+      - sh: command -v {{.SHFMT}}
+        msg: shfmt not found. Install from https://github.com/mvdan/sh
+    cmds:
+      - '{{.SHFMT}} -w {{.SCRIPTS}}'
+
+  help:
+    desc: Print task list
+    cmds:
+      - task --list
+

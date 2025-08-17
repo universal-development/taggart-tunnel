@@ -15,6 +15,22 @@ SSH jump hosts and securely access internal, non-public services (such as RDP, d
 
 ---
 
+## ⚡ Quick Start
+
+1) Copy and edit the example config:
+   - `cp example-tt-chain.conf tt-chain.conf`
+   - Set `LOCAL_PORT`, `REMOTE_HOST`, `REMOTE_PORT`, and your `HOST_CHAIN`.
+
+2) Run the tunnel:
+   - With Task: `task run CONFIG=./tt-chain.conf`
+   - Direct script: `bin/tt.sh ./tt-chain.conf`
+
+3) Connect to your local port (e.g., `localhost:4000`). Press Ctrl+C to stop.
+
+The script prints the hop chain and final SSH command for visibility.
+
+---
+
 ## 📁 Configuration Format
 
 You define the port forwarding route using a `.conf` file:
@@ -31,3 +47,18 @@ HOST_CHAIN=(
   ubuntu@jump1.example.com:22|~/.ssh/jump1.pem
   ubuntu@jump2.internal:22|~/.ssh/jump2.pem
 )
+
+---
+
+## 📦 Dependencies
+
+- Runtime: `bash` (POSIX shell), `ssh` client, `mktemp` (coreutils), and access to your SSH keys.
+- Optional (development): `task` (https://taskfile.dev), `shellcheck` (lint), `shfmt` (format). These improve contributor workflow but are not required to run the tunnel.
+
+Install Task if you plan to use the provided `Taskfile.yml` tasks: see https://taskfile.dev/#/installation.
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
