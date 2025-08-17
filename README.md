@@ -48,6 +48,8 @@ HOST_CHAIN=(
   ubuntu@jump2.internal:22|~/.ssh/jump2.pem
 )
 
+```
+
 ---
 
 ## 📦 Dependencies
